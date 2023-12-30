@@ -456,10 +456,10 @@ suite('Functional Tests', function() {
 
         test('Delete an issue with an invalid _id', () => {
             const projectName = 'testProject 1';
-            const id = 99;
-            const expectedResult = { error: 'could not delete', '_id': _id };
+            const id = "99";
+            const expectedResult = { error: 'could not delete', '_id': id };
 
-            sendReqAndTest(`/api/issues/${projectName}?_id=${_id}`, (err, res) => {
+            sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
                 const result = res.body;
                 assert.deepEqual(result, expectedResult);
             }, http_delete);
