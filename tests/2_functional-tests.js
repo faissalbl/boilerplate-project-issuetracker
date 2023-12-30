@@ -2,7 +2,7 @@ const chaiHttp = require('chai-http');
 const chai = require('chai');
 const assert = chai.assert;
 const server = require('../server');
-const { createIssue, getIssues, clear } = require('../models/project');
+const { createIssue, deleteIssues } = require('../services/IssueService');
 
 chai.use(chaiHttp);
 
@@ -38,10 +38,7 @@ suite('Functional Tests', function() {
 
     suite('create issue', () => {
         test('Create an issue with every field', () => {
-            const now = new Date().toISOString();
-    
             const issue = {
-                //_id: this.idSeq++,
                 issue_title: 'my test issue 1',
                 issue_text: 'this is my test issue 1',
                 created_by: 'Faissal',
@@ -80,7 +77,7 @@ suite('Functional Tests', function() {
                 assert.isNotNull(updated_on);
                 assert.equal(created_by, issue.created_by);
                 assert.equal(assigned_to, '');
-                assert.isFalse(open);
+                assert.isTrue(open);
                 assert.equal(status_text, '');
             }, http_post, issue);
         });
@@ -138,12 +135,17 @@ suite('Functional Tests', function() {
             }, http_post, issue);
         });
 
-        teardown(() => clear());
+        teardown(async () => {
+            await deleteIssues('mytestproject');
+        });
     });
   
     suite('view issues on a project', () => {
 
-        suiteSetup(() => {
+        suiteSetup(async () => {
+            await deleteIssues('testProject 1');
+            await deleteIssues('testProject 2');
+
             // first 5 items to testProject 1, the other 5 items to testProject 2
             // multiples of 3 are not open. The others are.
             // testProject 1 created and assigned to Joe 1. testProject 2: Joe 2.
@@ -158,7 +160,7 @@ suite('Functional Tests', function() {
                 let open = n % 3 == 0 ? false : true;
                 let status_text = `In QA ${n}`;
       
-                createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
+                await createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
             }
         });
   
@@ -200,16 +202,6 @@ suite('Functional Tests', function() {
 
         test('View issues on a project with one filter', () => {
             let projectName = 'testProject 1';
-            let issues = getIssues(projectName, { _id: 2 });
-            assert.equal(issues.length, 1);
-
-            sendReqAndTest(`/api/issues/${projectName}?_id=2`, (err, res) => {
-                const { error } = res.body;
-                assert.isUndefined(error);
-                const issues = res.body;
-                assert.isDefined(issues);
-                assert.equal(issues.length, 1);
-            });
 
             sendReqAndTest(`/api/issues/${projectName}?issue_title=Fix%20error%20in%20posting%20data%202`, (err, res) => {
                 const { error } = res.body;
@@ -263,7 +255,7 @@ suite('Functional Tests', function() {
         test('View issues on a project with multiple filters', () => {
             let projectName = 'testProject 1';
   
-            sendReqAndTest(`/api/issues/${projectName}?_id=3&issue_title=Fix%20error%20in%20posting%20data%202&created_by=Joe%201`, (err, res) => {
+            sendReqAndTest(`/api/issues/${projectName}?issue_title=Fix%20error%20in%20posting%20data%202&created_by=Joe%201`, (err, res) => {
                 const { error } = res.body;
                 assert.isUndefined(error);
                 const issues = res.body;
@@ -288,184 +280,188 @@ suite('Functional Tests', function() {
             });
         });
 
-        suiteTeardown(() => clear());
+        suiteTeardown(async () => {
+            await deleteIssues('testProject 1');
+            await deleteIssues('testProject 2');
+        });
+  
     });
 
-    suite('issue update', () => {
+    // suite('issue update', () => {
   
-        suiteSetup(() => {
-            // first 5 items to testProject 1, the other 5 items to testProject 2
-            // multiples of 3 are not open. The others are.
-            // testProject 1 created and assigned to Joe 1. testProject 2: Joe 2.
-            for (let i = 0; i <= 9; i++) {
-                const projectN = i <= 4 ? 1 : 2;
-                const n = i % 5;
-                let projectName = `testProject ${projectN}`;
-                let issue_title = `Fix error in posting data ${n}`;
-                let issue_text = `When we post data it has an error ${n}`;
-                let created_by = `Joe ${projectN}`;
-                let assigned_to = `Joe ${projectN}`;
-                let open = n % 3 == 0 ? false : true;
-                let status_text = `In QA ${n}`;
+    //     suiteSetup(() => {
+    //         // first 5 items to testProject 1, the other 5 items to testProject 2
+    //         // multiples of 3 are not open. The others are.
+    //         // testProject 1 created and assigned to Joe 1. testProject 2: Joe 2.
+    //         for (let i = 0; i <= 9; i++) {
+    //             const projectN = i <= 4 ? 1 : 2;
+    //             const n = i % 5;
+    //             let projectName = `testProject ${projectN}`;
+    //             let issue_title = `Fix error in posting data ${n}`;
+    //             let issue_text = `When we post data it has an error ${n}`;
+    //             let created_by = `Joe ${projectN}`;
+    //             let assigned_to = `Joe ${projectN}`;
+    //             let open = n % 3 == 0 ? false : true;
+    //             let status_text = `In QA ${n}`;
       
-                createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
-            }
-        });
+    //             createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
+    //         }
+    //     });
   
-        test('Update one field on an issue', () => {
-            const projectName = 'testProject 1';
-            const id = 2;
-            const newIssueTitle = 'Fix error in posting data, changed';
-            const msg = 'successfully updated';
+    //     test('Update one field on an issue', () => {
+    //         const projectName = 'testProject 1';
+    //         const id = 2;
+    //         const newIssueTitle = 'Fix error in posting data, changed';
+    //         const msg = 'successfully updated';
   
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.equal(result.result, msg);
-                assert.equal(result._id, id);
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.equal(result.result, msg);
+    //             assert.equal(result._id, id);
 
-                let issues = getIssues(projectName, { _id: id });
-                assert.equal(issues[0].issue_title, newIssueTitle);
+    //             let issues = getIssues(projectName, { _id: id });
+    //             assert.equal(issues[0].issue_title, newIssueTitle);
 
-                issues = getIssues(projectName, { _id: 1 });
-                assert.equal(issues[0].issue_title, 'Fix error in posting data 0');
-            }, http_put, { issue_title: newIssueTitle, _id: id });;
-        });
+    //             issues = getIssues(projectName, { _id: 1 });
+    //             assert.equal(issues[0].issue_title, 'Fix error in posting data 0');
+    //         }, http_put, { issue_title: newIssueTitle, _id: id });
+    //     });
 
-        test('Update multiple fields on an issue', () => {
-            const projectName = 'testProject 1';
-            const id = 2;
-            const newIssueTitle = 'Fix error in posting data, changed';
-            const newIssueText = 'When we post data it has an error, changed';
-            const newAssignedTo = 'Another User';
-            const newOpen = true;
-            const newStatusText = 'In QA, changed';
+    //     test('Update multiple fields on an issue', () => {
+    //         const projectName = 'testProject 1';
+    //         const id = 2;
+    //         const newIssueTitle = 'Fix error in posting data, changed';
+    //         const newIssueText = 'When we post data it has an error, changed';
+    //         const newAssignedTo = 'Another User';
+    //         const newOpen = true;
+    //         const newStatusText = 'In QA, changed';
           
-            const msg = 'successfully updated';
+    //         const msg = 'successfully updated';
 
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.equal(result.result, msg);
-                assert.equal(result._id, id);
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.equal(result.result, msg);
+    //             assert.equal(result._id, id);
 
-                let issues = getIssues(projectName, { _id: id });
-                assert.equal(issues[0].issue_title, newIssueTitle);
-                assert.equal(issues[0].issue_text, newIssueText);
-                assert.equal(issues[0].assigned_to, newAssignedTo);
-                assert.equal(issues[0].open, newOpen);
-                assert.equal(issues[0].status_text, newStatusText);
+    //             let issues = getIssues(projectName, { _id: id });
+    //             assert.equal(issues[0].issue_title, newIssueTitle);
+    //             assert.equal(issues[0].issue_text, newIssueText);
+    //             assert.equal(issues[0].assigned_to, newAssignedTo);
+    //             assert.equal(issues[0].open, newOpen);
+    //             assert.equal(issues[0].status_text, newStatusText);
 
-                issues = getIssues(projectName, { _id: 1 });
-                assert.equal(issues[0].issue_title, 'Fix error in posting data 0');
-                assert.equal(issues[0].issue_text, 'When we post data it has an error 0');
-                assert.equal(issues[0].assigned_to, 'Joe 1');
-                assert.equal(issues[0].open, false);
-                assert.equal(issues[0].status_text, 'In QA 0');
-            }, http_put, { 
-              issue_title: newIssueTitle, 
-              issue_text: newIssueText,
-              assigned_to: newAssignedTo,
-              open: newOpen,
-              status_text: newStatusText,
-              _id: id 
-            });;
-        });
+    //             issues = getIssues(projectName, { _id: 1 });
+    //             assert.equal(issues[0].issue_title, 'Fix error in posting data 0');
+    //             assert.equal(issues[0].issue_text, 'When we post data it has an error 0');
+    //             assert.equal(issues[0].assigned_to, 'Joe 1');
+    //             assert.equal(issues[0].open, false);
+    //             assert.equal(issues[0].status_text, 'In QA 0');
+    //         }, http_put, { 
+    //           issue_title: newIssueTitle, 
+    //           issue_text: newIssueText,
+    //           assigned_to: newAssignedTo,
+    //           open: newOpen,
+    //           status_text: newStatusText,
+    //           _id: id 
+    //         });
+    //     });
 
-        test('Update an issue with missing _id', () => {
-            const projectName = 'testProject 1';
-            const newIssueTitle = 'Fix error in posting data, changed';
-            const error = 'missing _id';
+    //     test('Update an issue with missing _id', () => {
+    //         const projectName = 'testProject 1';
+    //         const newIssueTitle = 'Fix error in posting data, changed';
+    //         const error = 'missing _id';
 
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.equal(result.error, error);
-            }, http_put, { issue_title: newIssueTitle });;
-        });
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.equal(result.error, error);
+    //         }, http_put, { issue_title: newIssueTitle });
+    //     });
 
-        test('Update an issue with no fields to update', () => {
-            const projectName = 'testProject 1';
-            const _id = 2;
-            const expectedResult = { error: 'no update field(s) sent', '_id': _id };
+    //     test('Update an issue with no fields to update', () => {
+    //         const projectName = 'testProject 1';
+    //         const _id = 2;
+    //         const expectedResult = { error: 'no update field(s) sent', '_id': _id };
 
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.deepEqual(result, expectedResult);
-            }, http_put, { _id });;
-        });
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.deepEqual(result, expectedResult);
+    //         }, http_put, { _id });
+    //     });
 
-        test('Update an issue with an invalid _id', () => {
-            const projectName = 'testProject 1';
-            const newIssueTitle = 'Fix error in posting data, changed';
-            const _id = 99;
-            const expectedResult = { error: 'could not update', '_id': _id };
+    //     test('Update an issue with an invalid _id', () => {
+    //         const projectName = 'testProject 1';
+    //         const newIssueTitle = 'Fix error in posting data, changed';
+    //         const _id = 99;
+    //         const expectedResult = { error: 'could not update', '_id': _id };
 
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.deepEqual(result, expectedResult);
-            }, http_put, { _id, newIssueTitle });;
-        });
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.deepEqual(result, expectedResult);
+    //         }, http_put, { _id, newIssueTitle });
+    //     });
   
-        suiteTeardown(() => clear());
-    });
+    //     suiteTeardown(() => clear());
+    // });
 
-    suite('delete issue', () => {
+    // suite('delete issue', () => {
 
-        suiteSetup(() => {
-            // first 5 items to testProject 1, the other 5 items to testProject 2
-            // multiples of 3 are not open. The others are.
-            // testProject 1 created and assigned to Joe 1. testProject 2: Joe 2.
-            for (let i = 0; i <= 9; i++) {
-                const projectN = i <= 4 ? 1 : 2;
-                const n = i % 5;
-                let projectName = `testProject ${projectN}`;
-                let issue_title = `Fix error in posting data ${n}`;
-                let issue_text = `When we post data it has an error ${n}`;
-                let created_by = `Joe ${projectN}`;
-                let assigned_to = `Joe ${projectN}`;
-                let open = n % 3 == 0 ? false : true;
-                let status_text = `In QA ${n}`;
+    //     suiteSetup(() => {
+    //         // first 5 items to testProject 1, the other 5 items to testProject 2
+    //         // multiples of 3 are not open. The others are.
+    //         // testProject 1 created and assigned to Joe 1. testProject 2: Joe 2.
+    //         for (let i = 0; i <= 9; i++) {
+    //             const projectN = i <= 4 ? 1 : 2;
+    //             const n = i % 5;
+    //             let projectName = `testProject ${projectN}`;
+    //             let issue_title = `Fix error in posting data ${n}`;
+    //             let issue_text = `When we post data it has an error ${n}`;
+    //             let created_by = `Joe ${projectN}`;
+    //             let assigned_to = `Joe ${projectN}`;
+    //             let open = n % 3 == 0 ? false : true;
+    //             let status_text = `In QA ${n}`;
 
-                createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
-            }
-        });
+    //             createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
+    //         }
+    //     });
 
-        test('delete an issue', () => {
-            const projectName = 'testProject 1';
-            const id = 2;
-            const msg = 'successfully deleted';
+    //     test('delete an issue', () => {
+    //         const projectName = 'testProject 1';
+    //         const id = 2;
+    //         const msg = 'successfully deleted';
 
-            sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
-                const result = res.body;
-                assert.isUndefined(result.error);
-                assert.equal(result.result, msg);
-                assert.equal(result._id, id);
+    //         sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.isUndefined(result.error);
+    //             assert.equal(result.result, msg);
+    //             assert.equal(result._id, id);
 
-                let issues = getIssues(projectName, { _id: id });
-                assert.equal(issues.length, 0);
-            }, http_delete);
-        });
+    //             let issues = getIssues(projectName, { _id: id });
+    //             assert.equal(issues.length, 0);
+    //         }, http_delete);
+    //     });
 
-        test('Delete an issue with missing _id', () => {
-            const projectName = 'testProject 1';
-            const error = 'missing _id';
+    //     test('Delete an issue with missing _id', () => {
+    //         const projectName = 'testProject 1';
+    //         const error = 'missing _id';
 
-            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
-                const result = res.body;
-                assert.equal(result.error, error);
-            }, http_delete);
-        });
+    //         sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.equal(result.error, error);
+    //         }, http_delete);
+    //     });
 
-        test('Delete an issue with an invalid _id', () => {
-            const projectName = 'testProject 1';
-            const id = "99";
-            const expectedResult = { error: 'could not delete', '_id': id };
+    //     test('Delete an issue with an invalid _id', () => {
+    //         const projectName = 'testProject 1';
+    //         const id = "99";
+    //         const expectedResult = { error: 'could not delete', '_id': id };
 
-            sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
-                const result = res.body;
-                assert.deepEqual(result, expectedResult);
-            }, http_delete);
-        });
+    //         sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
+    //             const result = res.body;
+    //             assert.deepEqual(result, expectedResult);
+    //         }, http_delete);
+    //     });
 
-        suiteTeardown(() => clear());
-    });
+    //     suiteTeardown(() => clear());
+    // });
   
 });

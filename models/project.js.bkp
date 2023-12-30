@@ -6,7 +6,7 @@ const project = {
   projects: {},
 
   createIssue: function(project, issueProps) {
-    const { issue_title, issue_text, created_by, assigned_to = '', open = false, status_text = '' } = (issueProps || {});
+    const { issue_title, issue_text, created_by, assigned_to = '', open = true, status_text = '' } = (issueProps || {});
 
     if (!project || !issue_title || !issue_text || !created_by) {
       return { error: 'required field(s) missing' };
