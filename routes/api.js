@@ -1,5 +1,5 @@
 'use strict';
-const { createIssue, getIssues } = require('../services/IssueService');
+const { createIssue, getIssues, updateIssue, deleteIssue } = require('../services/IssueService');
 
 module.exports = function (app) {
 
@@ -17,25 +17,25 @@ module.exports = function (app) {
           return res.json(issue);
       })
   
-      .put(function (req, res) {
+      .put(async function (req, res) {
           const project = req.params.project;
-          // const updateFields = req.body;
-          // const _id = updateFields._id;
+          const updateFields = req.body;
+          const _id = updateFields._id;
 
-          // if (!_id) return res.json({ error: 'missing _id' });
-          // if (!updateFields || Object.keys(updateFields).length <= 1) 
-          //   return res.json({ error: 'no update field(s) sent', _id: _id });
+          if (!_id) return res.json({ error: 'missing _id' });
+          if (!updateFields || Object.keys(updateFields).length <= 1) 
+              return res.json({ error: 'no update field(s) sent', _id: _id });
         
-          // const result = updateIssue(project, _id, updateFields);
-          // return res.json(result);
+          const result = await updateIssue(project, _id, updateFields);
+          return res.json(result);
       })
   
-      .delete(function (req, res) {
+      .delete(async function (req, res) {
           const project = req.params.project;
-          // const _id = req.query._id;
-          // if (!_id) return res.json({ error: 'missing _id' });
-          // const result = deleteIssue(project, _id);
-          // return res.json(result);
+          const _id = req.query._id;
+          if (!_id) return res.json({ error: 'missing _id' });
+          const result = await deleteIssue(project, _id);
+          return res.json(result);
       });
 
 };
