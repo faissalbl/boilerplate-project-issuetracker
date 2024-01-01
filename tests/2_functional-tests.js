@@ -17,17 +17,22 @@ suite('Functional Tests', function() {
     function sendReqAndTest (url, testFn, http_verb = http_get, body = null) {
         let req = chai.request(server).keepOpen();
 
-        if (http_post === http_verb || http_put === http_verb) {
-            if (http_post === http_verb) {
-                req = req.post(url);
-            } else {
-                req = req.put(url);
+        if (http_post === http_verb || http_put === http_verb || http_delete === http_verb) {
+            switch (http_verb) {
+                case http_post:
+                    req = req.post(url);
+                    break;
+                case http_put:
+                    req = req.put(url);
+                    break;
+                case http_delete:
+                    req = req.delete(url);
+                    break;
             }
+            
             if (body) {
                 req = req.send(body);
             }
-        } else if (http_delete === http_verb) {
-            req = req.delete(url);
         } else {
             req = req.get(url);
         }
@@ -518,7 +523,6 @@ suite('Functional Tests', function() {
                 let status_text = `In QA ${n}`;
 
                 const issue = await createIssue(projectName, { issue_title, issue_text, created_by, assigned_to, open, status_text });
-
                 createdIssueIds.push(issue._id);
             }
         });
@@ -528,7 +532,7 @@ suite('Functional Tests', function() {
             const id = createdIssueIds[1];
             const msg = 'successfully deleted';
 
-            sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, async (err, res) => {
+            sendReqAndTest(`/api/issues/${projectName}`, async (err, res) => {
                 const result = res.body;
                 assert.isUndefined(result.error);
                 assert.equal(result.result, msg);
@@ -537,7 +541,7 @@ suite('Functional Tests', function() {
                 const issues = await getIssues(projectName, { _id: id });
                 assert.equal(issues.length, 0);
                 done();
-            }, http_delete);
+            }, http_delete, { _id: id });
         });
 
         test('Delete an issue with missing _id', (done) => {
@@ -556,16 +560,16 @@ suite('Functional Tests', function() {
             const id = new mongoose.Types.ObjectId().toString();
             const expectedResult = { error: 'could not delete', '_id': id };
 
-            sendReqAndTest(`/api/issues/${projectName}?_id=${id}`, (err, res) => {
+            sendReqAndTest(`/api/issues/${projectName}`, (err, res) => {
                 const result = res.body;
                 assert.deepEqual(result, expectedResult);
                 done();
-            }, http_delete);
+            }, http_delete, { _id: id });
         });
 
         suiteTeardown(async () => {
-            await deleteIssues('testProject 1');
-            await deleteIssues('testProject 2');
+            // await deleteIssues('testProject 1');
+            // await deleteIssues('testProject 2');
         });
     });
   

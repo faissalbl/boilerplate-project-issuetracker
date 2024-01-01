@@ -32,7 +32,7 @@ module.exports = function (app) {
   
       .delete(async function (req, res) {
           const project = req.params.project;
-          const _id = req.query._id;
+          const _id = req.body._id;
           if (!_id) return res.json({ error: 'missing _id' });
           const result = await deleteIssue(project, _id);
           return res.json(result);
